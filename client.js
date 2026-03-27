@@ -8,9 +8,12 @@ const rl = createInterface({ input: process.stdin, output: process.stdout });
 
 ws.on('open', () => {
   console.log(`서버 연결됨: ${SERVER_URL}`);
-  console.log('명령어: challenge | answer <숫자> | chat <메시지> | ping | quit');
+  console.log('명령어: name <닉네임> | challenge | answer <숫자> | chat <메시지> | ping | quit');
+  console.log('퀴즈가 출제되면 숫자만 입력하면 정답 제출됩니다.');
   prompt();
 });
+
+let quizActive = false;
 
 ws.on('message', (raw) => {
   const data = JSON.parse(raw.toString());
@@ -19,9 +22,26 @@ ws.on('message', (raw) => {
     case 'welcome':
       console.log(`\n[환영] ${data.message}`);
       break;
-    case 'chat':
-      console.log(`\n[채팅] #${data.from}: ${data.message}`);
+    case 'name_ok':
+      console.log(`\n[닉네임] "${data.name}" 설정 완료`);
       break;
+    case 'quiz':
+      quizActive = true;
+      console.log(`\n========== 퀴즈! ==========`);
+      console.log(`  ${data.question}`);
+      console.log(`  숫자를 입력하세요!`);
+      console.log(`============================`);
+      break;
+    case 'quiz_result':
+      quizActive = false;
+      console.log(`\n★★★ 정답자: ${data.winnerName} ★★★`);
+      console.log(`  문제: ${data.question} → 정답: ${data.answer} (${data.elapsed}ms)`);
+      break;
+    case 'chat': {
+      const sender = data.fromName || `#${data.from}`;
+      console.log(`\n[채팅] ${sender}: ${data.message}`);
+      break;
+    }
     case 'system':
       console.log(`\n[시스템] ${data.message}`);
       break;
@@ -66,6 +86,16 @@ function prompt() {
 
     if (trimmed === 'quit') {
       ws.close();
+      return;
+    }
+
+    if (trimmed.startsWith('name ')) {
+      ws.send(JSON.stringify({ type: 'name', name: trimmed.slice(5) }));
+      return;
+    }
+
+    if (quizActive && /^\d+$/.test(trimmed)) {
+      ws.send(JSON.stringify({ type: 'quiz_answer', answer: Number(trimmed) }));
       return;
     }
 

@@ -10,20 +10,27 @@ const PROTOCOL_INFO = {
     'GET /api/protocol': '이 프로토콜 문서를 반환',
     'POST /api/send': '접속 중인 모든 클라이언트에게 메시지 전송 (body: 임의 JSON)',
     'GET /api/clients': '현재 접속자 수 조회',
+    'POST /api/quiz': '퀴즈 출제 → 전체 브로드캐스트 (body: { a, b } 또는 { question, answer })',
+    'GET /api/quiz': '현재 퀴즈 진행 상태 조회',
   },
   websocketProtocol: {
     clientToServer: [
+      { type: 'name', fields: { name: 'string' }, description: '닉네임 설정 (최대 20자)' },
+      { type: 'quiz_answer', fields: { answer: 'number' }, description: '퀴즈 정답 제출 (첫 정답자 승리)' },
       { type: 'chat', fields: { message: 'string' }, description: '채팅 메시지 (브로드캐스트)' },
-      { type: 'challenge', fields: {}, description: '두 자리 곱셈 문제 요청' },
-      { type: 'answer', fields: { answer: 'number' }, description: '챌린지 정답 제출' },
+      { type: 'challenge', fields: {}, description: '개인 곱셈 문제 요청' },
+      { type: 'answer', fields: { answer: 'number' }, description: '개인 챌린지 정답 제출' },
       { type: 'ping', fields: {}, description: '서버 응답 확인' },
       { type: '기타', fields: '자유', description: '에코로 반환' },
     ],
     serverToClient: [
       { type: 'welcome', fields: ['clientId', 'message'], description: '연결 시 수신' },
-      { type: 'chat', fields: ['from', 'message', 'timestamp'], description: '채팅 메시지' },
+      { type: 'name_ok', fields: ['name'], description: '닉네임 설정 완료' },
+      { type: 'quiz', fields: ['question'], description: '퀴즈 출제 (전체 브로드캐스트)' },
+      { type: 'quiz_result', fields: ['winner', 'winnerName', 'question', 'answer', 'elapsed'], description: '퀴즈 종료 - 정답자 발표' },
+      { type: 'chat', fields: ['from', 'fromName', 'message', 'timestamp'], description: '채팅 메시지' },
       { type: 'system', fields: ['message'], description: '입장/퇴장 알림' },
-      { type: 'challenge', fields: ['question', 'a', 'b'], description: '곱셈 문제' },
+      { type: 'challenge', fields: ['question', 'a', 'b'], description: '개인 곱셈 문제' },
       { type: 'ok', fields: ['message'], description: '정답' },
       { type: 'fail', fields: ['message'], description: '오답 또는 문제 없음' },
       { type: 'pong', fields: ['timestamp'], description: 'ping 응답' },
@@ -85,14 +92,44 @@ const httpServer = createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === 'POST' && url.pathname === '/api/quiz') {
+    try {
+      const body = await readBody(req);
+      if (activeQuiz) {
+        sendJson(res, 409, { error: '이미 진행 중인 퀴즈가 있습니다', quiz: activeQuiz.question });
+        return;
+      }
+      const a = body.a ?? 0;
+      const b = body.b ?? 0;
+      const answer = body.answer ?? a * b;
+      const question = body.question ?? `${a} × ${b} = ?`;
+      activeQuiz = { question, answer, startedAt: Date.now() };
+      broadcast({ type: 'quiz', question });
+      console.log(`[퀴즈 출제] ${question} (정답: ${answer})`);
+      sendJson(res, 200, { success: true, question, sentTo: clients.size });
+    } catch (e) {
+      sendJson(res, 400, { error: e.message });
+    }
+    return;
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/quiz') {
+    sendJson(res, 200, activeQuiz
+      ? { active: true, question: activeQuiz.question, elapsed: Date.now() - activeQuiz.startedAt }
+      : { active: false });
+    return;
+  }
+
   sendJson(res, 404, { error: 'Not found' });
 });
 
 const wss = new WebSocketServer({ server: httpServer });
 
 const clients = new Map();
+const clientNames = new Map();
 const challenges = new Map();
 let clientIdCounter = 0;
+let activeQuiz = null;
 
 function randTwoDigit() {
   return Math.floor(Math.random() * 90) + 10;
@@ -127,10 +164,45 @@ wss.on('connection', (ws, req) => {
     console.log(`[수신] #${clientId}:`, data);
 
     switch (data.type) {
+      case 'name': {
+        const name = String(data.name).trim().slice(0, 20);
+        clientNames.set(clientId, name);
+        ws.send(JSON.stringify({ type: 'name_ok', name }));
+        console.log(`[이름] #${clientId} → ${name}`);
+        break;
+      }
+
+      case 'quiz_answer': {
+        if (!activeQuiz) {
+          ws.send(JSON.stringify({ type: 'fail', message: '진행 중인 퀴즈가 없습니다.' }));
+          break;
+        }
+        const userQuizAnswer = Number(data.answer);
+        if (userQuizAnswer !== activeQuiz.answer) {
+          console.log(`[퀴즈 오답] #${clientId}: ${userQuizAnswer}`);
+          ws.send(JSON.stringify({ type: 'fail', message: '오답! 다시 시도하세요.' }));
+          break;
+        }
+        const winnerName = clientNames.get(clientId) || `클라이언트 #${clientId}`;
+        const elapsed = Date.now() - activeQuiz.startedAt;
+        console.log(`[퀴즈 정답] ${winnerName} (${elapsed}ms)`);
+        broadcast({
+          type: 'quiz_result',
+          winner: clientId,
+          winnerName,
+          question: activeQuiz.question,
+          answer: activeQuiz.answer,
+          elapsed,
+        });
+        activeQuiz = null;
+        break;
+      }
+
       case 'chat':
         broadcast({
           type: 'chat',
           from: clientId,
+          fromName: clientNames.get(clientId) || null,
           message: data.message,
           timestamp: Date.now(),
         });
@@ -183,6 +255,7 @@ wss.on('connection', (ws, req) => {
 
   ws.on('close', () => {
     clients.delete(clientId);
+    clientNames.delete(clientId);
     challenges.delete(clientId);
     console.log(`[해제] 클라이언트 #${clientId} - 현재 접속: ${clients.size}명`);
 
@@ -208,8 +281,9 @@ function broadcast(data, excludeId = null) {
 
 httpServer.listen(PORT, () => {
   console.log(`서버 시작 - http://localhost:${PORT}`);
-  console.log(`  WebSocket: ws://localhost:${PORT}`);
-  console.log(`  프로토콜: http://localhost:${PORT}/api/protocol`);
+  console.log(`  WebSocket:  ws://localhost:${PORT}`);
+  console.log(`  프로토콜:   http://localhost:${PORT}/api/protocol`);
   console.log(`  메시지 전송: POST http://localhost:${PORT}/api/send`);
+  console.log(`  퀴즈 출제:  POST http://localhost:${PORT}/api/quiz`);
   console.log(`  접속자 조회: http://localhost:${PORT}/api/clients`);
 });
