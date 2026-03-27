@@ -1,0 +1,17 @@
+{
+  "name": "socket-play-server",
+  "version": "1.0.0",
+  "description": "Simple WebSocket server for testing and prototyping",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "client": "node client.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
