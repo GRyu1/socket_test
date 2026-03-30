@@ -28,40 +28,26 @@ export function userFeatures(user) {
     user: { username: user.username },
     features: [
       {
-        title: '구구단 게임',
-        description: '랜덤 곱셈 문제 10문제',
-        endpoint: 'POST /api/quiz/gugudan/start',
-        docs: {
-          headers: { 'x-api-key': 'your-key' },
-          response: { session_id: 'number', question: 'string', question_number: 'number' },
-        },
+        title: '멀티플레이 퀴즈',
+        description: '관리자가 출제하면 채팅방 접속자끼리 누가 먼저 맞추나 경쟁',
+        how: 'WebSocket 채팅에 접속하면 퀴즈가 출제될 때 quiz 메시지를 받습니다. quiz_answer로 정답을 제출하세요.',
       },
       {
-        title: '수도 맞추기',
-        description: '나라 이름을 보고 수도를 맞추세요 (10문제)',
-        endpoint: 'POST /api/quiz/capital/start',
-        docs: {
-          headers: { 'x-api-key': 'your-key' },
-          response: { session_id: 'number', question: 'string', question_number: 'number' },
-        },
-      },
-      {
-        title: '자유 대화',
-        description: '실시간 채팅방 (WebSocket)',
+        title: '실시간 채팅',
+        description: '채팅방에서 대화 (10초 쿨타임)',
         endpoint: 'WSS /chat?key=your-key',
         docs: {
           send: { type: 'chat', message: 'string' },
+          quiz_answer: { type: 'quiz_answer', answer: 'string | number' },
           receive: [
+            { type: 'welcome', username: 'string', online: 'number' },
             { type: 'chat', from: 'string', message: 'string', timestamp: 'number' },
             { type: 'system', message: 'string' },
+            { type: 'quiz', question: 'string' },
+            { type: 'quiz_result', message: 'string', winner: 'string', answer: 'string | number', elapsed: 'number' },
+            { type: 'fail', message: 'string' },
           ],
         },
-      },
-      {
-        title: '플레이 기록',
-        description: '게임별 승률, 최근 기록 조회',
-        endpoint: 'GET /api/history',
-        docs: { headers: { 'x-api-key': 'your-key' } },
       },
     ],
   };

@@ -6,8 +6,6 @@ import { WebSocketServer } from 'ws';
 const SKILL_MD = readFileSync(new URL('./SKILL.md', import.meta.url), 'utf-8');
 import { authenticate, register, login } from './routes/auth.js';
 import { guestFeatures, userFeatures } from './routes/start.js';
-import { startQuiz, submitAnswer } from './routes/quiz.js';
-import { getHistory } from './routes/history.js';
 import { setupChat, startBroadcastQuiz, startCapitalQuiz, startGugudanQuiz, getQuizStatus, getOnlineCount } from './routes/chat.js';
 
 const PORT = process.env.PORT || 8080;
@@ -110,33 +108,6 @@ const httpServer = createServer(async (req, res) => {
       return;
     }
 
-    // --- 인증 필요한 엔드포인트 ---
-    const user = await authenticate(apiKey);
-    if (!user) {
-      sendJson(res, 401, { error: 'API Key가 필요합니다. /api/start를 확인하세요.' });
-      return;
-    }
-
-    if (req.method === 'POST' && path.match(/^\/api\/quiz\/(gugudan|capital)\/start$/)) {
-      const gameType = path.split('/')[3];
-      const result = await startQuiz(user, gameType);
-      sendJson(res, result.status, result.data);
-      return;
-    }
-
-    if (req.method === 'POST' && path === '/api/quiz/answer') {
-      const body = await readBody(req);
-      const result = await submitAnswer(user, body);
-      sendJson(res, result.status, result.data);
-      return;
-    }
-
-    if (req.method === 'GET' && path === '/api/history') {
-      const result = await getHistory(user);
-      sendJson(res, result.status, result.data);
-      return;
-    }
-
     sendJson(res, 404, { error: 'Not found. GET /api/start 에서 사용 가능한 기능을 확인하세요.' });
   } catch (e) {
     console.error('[에러]', e);
@@ -153,14 +124,10 @@ httpServer.listen(PORT, () => {
   console.log(`  진입점:     GET  http://localhost:${PORT}/api/start`);
   console.log(`  회원가입:   POST http://localhost:${PORT}/api/register`);
   console.log(`  로그인:     POST http://localhost:${PORT}/api/login`);
-  console.log(`  구구단:     POST http://localhost:${PORT}/api/quiz/gugudan/start`);
-  console.log(`  수도퀴즈:   POST http://localhost:${PORT}/api/quiz/capital/start`);
-  console.log(`  답변제출:   POST http://localhost:${PORT}/api/quiz/answer`);
-  console.log(`  기록조회:   GET  http://localhost:${PORT}/api/history`);
-  console.log(`  [방송] 수도퀴즈: POST http://localhost:${PORT}/api/broadcast/quiz/capital`);
-  console.log(`  [방송] 구구단:   POST http://localhost:${PORT}/api/broadcast/quiz/gugudan`);
-  console.log(`  [방송] 자유출제: POST http://localhost:${PORT}/api/broadcast/quiz`);
-  console.log(`  [방송] 퀴즈상태: GET  http://localhost:${PORT}/api/broadcast/quiz`);
-  console.log(`  [방송] 접속자:   GET  http://localhost:${PORT}/api/broadcast/clients`);
+  console.log(`  수도퀴즈:   POST http://localhost:${PORT}/api/broadcast/quiz/capital`);
+  console.log(`  구구단:     POST http://localhost:${PORT}/api/broadcast/quiz/gugudan`);
+  console.log(`  자유출제:   POST http://localhost:${PORT}/api/broadcast/quiz`);
+  console.log(`  퀴즈상태:   GET  http://localhost:${PORT}/api/broadcast/quiz`);
+  console.log(`  접속자:     GET  http://localhost:${PORT}/api/broadcast/clients`);
   console.log(`  채팅:       WSS  ws://localhost:${PORT}/chat?key=API_KEY`);
 });
