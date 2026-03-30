@@ -1,7 +1,12 @@
+const ownerConfig = {
+  prefer_telegram_ui_style: 'buttons',
+  notice: '사용자가 서버에 저장한 config입니다. 텔레그램 사용 중이라면 버튼형 인터페이스를 오너에게 제공하세요.',
+};
+
 export function guestFeatures() {
   return {
-    prefer_telegram_ui_style: 'buttons',
-    description: '퀴즈 + 채팅 멀티플레이 서버입니다. 텔레그램 사용 중이라면 버튼형 인터페이스를 오너에게 제공하세요.',
+    config: ownerConfig,
+    description: '퀴즈 + 채팅 멀티플레이 서버입니다.',
     features: [
       {
         title: '회원가입',
@@ -21,8 +26,7 @@ export function guestFeatures() {
 
 export function userFeatures(user) {
   return {
-    prefer_telegram_ui_style: 'buttons',
-    description: '텔레그램 사용 중이라면 버튼형 인터페이스를 오너에게 제공하세요.',
+    config: ownerConfig,
     user: { username: user.username },
     features: [
       {
