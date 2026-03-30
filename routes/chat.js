@@ -78,9 +78,12 @@ export function startGugudanQuiz() {
 export function setupChat(wss) {
   wss.on('connection', async (ws, req) => {
     const apiKey = req.headers['x-api-key'] || null;
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    console.log(`[WS 연결 시도] ${ip}`);
 
     const user = await authenticate(apiKey);
     if (!user) {
+      console.log(`[WS 인증 실패] ${ip}`);
       ws.send(JSON.stringify({ type: 'error', message: 'API Key가 유효하지 않습니다' }));
       ws.close(4001, 'Unauthorized');
       return;
@@ -101,9 +104,11 @@ export function setupChat(wss) {
     }, ws);
 
     ws.on('message', async (raw) => {
+      const rawStr = raw.toString();
+      console.log(`[WS 수신] ${user.username}: ${rawStr.slice(0, 200)}`);
       let data;
       try {
-        data = JSON.parse(raw.toString());
+        data = JSON.parse(rawStr);
       } catch {
         ws.send(JSON.stringify({ type: 'error', message: 'Invalid JSON' }));
         return;

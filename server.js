@@ -42,6 +42,9 @@ const httpServer = createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const path = url.pathname;
   const apiKey = req.headers['x-api-key'] || null;
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+
+  console.log(`[HTTP] ${req.method} ${path} ← ${ip}`);
 
   try {
     if (req.method === 'GET' && path === '/SKILL.md') {
