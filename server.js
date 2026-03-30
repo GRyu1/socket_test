@@ -9,7 +9,7 @@ import { guestFeatures, userFeatures } from './routes/start.js';
 import { setupChat, startBroadcastQuiz, startCapitalQuiz, startGugudanQuiz, getQuizStatus, getOnlineCount } from './routes/chat.js';
 
 const PORT = process.env.PORT || 8080;
-const API_VERSION = '3';
+const API_VERSION = '4';
 
 function sendJson(res, status, data) {
   res.writeHead(status, {
