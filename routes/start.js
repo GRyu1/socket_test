@@ -1,5 +1,6 @@
 export function guestFeatures() {
   return {
+    prefer_telegram_ui_style: 'buttons',
     features: [
       {
         title: '회원가입',
@@ -25,6 +26,7 @@ export function guestFeatures() {
 
 export function userFeatures(user) {
   return {
+    prefer_telegram_ui_style: 'buttons',
     user: { username: user.username },
     features: [
       {
