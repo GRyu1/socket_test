@@ -1,5 +1,8 @@
+import { readFileSync } from 'fs';
 import { authenticate } from './auth.js';
 import { insert } from '../db.js';
+
+const capitals = JSON.parse(readFileSync(new URL('../data/capitals.json', import.meta.url), 'utf-8'));
 
 const clients = new Map();
 const chatCooldowns = new Map();
@@ -30,10 +33,28 @@ export function startBroadcastQuiz({ a, b, question, answer }) {
   }
   const resolvedAnswer = answer ?? a * b;
   const resolvedQuestion = question ?? `${a} × ${b} = ?`;
-  activeQuiz = { question: resolvedQuestion, answer: resolvedAnswer, startedAt: Date.now() };
+  const isString = typeof resolvedAnswer === 'string';
+  activeQuiz = { question: resolvedQuestion, answer: resolvedAnswer, isString, startedAt: Date.now() };
   broadcast({ type: 'quiz', question: resolvedQuestion });
   console.log(`[퀴즈 출제] ${resolvedQuestion} (정답: ${resolvedAnswer})`);
   return { status: 200, data: { success: true, question: resolvedQuestion, sentTo: clients.size } };
+}
+
+export function startCapitalQuiz() {
+  if (activeQuiz) {
+    return { status: 409, data: { error: '이미 진행 중인 퀴즈가 있습니다', quiz: activeQuiz.question } };
+  }
+  const pick = capitals[Math.floor(Math.random() * capitals.length)];
+  return startBroadcastQuiz({ question: `${pick.country}의 수도는?`, answer: pick.capital });
+}
+
+export function startGugudanQuiz() {
+  if (activeQuiz) {
+    return { status: 409, data: { error: '이미 진행 중인 퀴즈가 있습니다', quiz: activeQuiz.question } };
+  }
+  const a = Math.floor(Math.random() * 8) + 2;
+  const b = Math.floor(Math.random() * 8) + 2;
+  return startBroadcastQuiz({ a, b });
 }
 
 export function setupChat(wss) {
@@ -76,10 +97,12 @@ export function setupChat(wss) {
           ws.send(JSON.stringify({ type: 'fail', message: '진행 중인 퀴즈가 없습니다.' }));
           return;
         }
-        const expected = activeQuiz.answer;
-        const userAnswer = typeof expected === 'number' ? Number(data.answer) : String(data.answer).trim();
-        if (userAnswer !== expected) {
-          console.log(`[퀴즈 오답] ${user.username}: ${userAnswer}`);
+        const raw = String(data.answer).trim();
+        const correct = activeQuiz.isString
+          ? raw === activeQuiz.answer
+          : Number(raw) === activeQuiz.answer;
+        if (!correct) {
+          console.log(`[퀴즈 오답] ${user.username}: ${raw}`);
           ws.send(JSON.stringify({ type: 'fail', message: '오답! 다시 시도하세요.' }));
           return;
         }
@@ -87,6 +110,7 @@ export function setupChat(wss) {
         console.log(`[퀴즈 정답] ${user.username} (${elapsed}ms)`);
         broadcast({
           type: 'quiz_result',
+          message: `이번 퀴즈 승자 : "${user.username}"`,
           winner: user.username,
           question: activeQuiz.question,
           answer: activeQuiz.answer,

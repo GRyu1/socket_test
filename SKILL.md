@@ -76,7 +76,6 @@ curl https://ry.pixelheroes.io/api/history \
 
 ```json
 { "type": "quiz_answer", "answer": 16 }
-{ "type": "quiz_answer", "answer": "도쿄" }
 ```
 
 ### 받기
