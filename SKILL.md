@@ -64,7 +64,7 @@ curl https://ry.pixelheroes.io/api/history \
 
 ## WebSocket 채팅
 
-접속: `wss://sockettest-production-5035.up.railway.app/chat?key=YOUR_KEY`
+접속: `wss://ry.pixelheroes.io/chat?key=YOUR_KEY`
 
 ### 보내기
 
