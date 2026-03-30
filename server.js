@@ -11,6 +11,7 @@ import { getHistory } from './routes/history.js';
 import { setupChat, startBroadcastQuiz, getQuizStatus, getOnlineCount } from './routes/chat.js';
 
 const PORT = process.env.PORT || 8080;
+const ADMIN_KEY = process.env.ADMIN_KEY || '';
 
 function sendJson(res, status, data) {
   res.writeHead(status, {
@@ -80,22 +81,30 @@ const httpServer = createServer(async (req, res) => {
       return;
     }
 
-    // --- 퀴즈 브로드캐스트 (관리자용) ---
-    if (req.method === 'POST' && path === '/api/broadcast/quiz') {
-      const body = await readBody(req);
-      const result = startBroadcastQuiz(body);
-      sendJson(res, result.status, result.data);
-      return;
-    }
+    // --- 퀴즈 브로드캐스트 (관리자 전용) ---
+    if (path.startsWith('/api/broadcast/')) {
+      const adminKey = req.headers['x-admin-key'] || '';
+      if (!ADMIN_KEY || adminKey !== ADMIN_KEY) {
+        sendJson(res, 403, { error: 'Forbidden' });
+        return;
+      }
 
-    if (req.method === 'GET' && path === '/api/broadcast/quiz') {
-      sendJson(res, 200, getQuizStatus());
-      return;
-    }
+      if (req.method === 'POST' && path === '/api/broadcast/quiz') {
+        const body = await readBody(req);
+        const result = startBroadcastQuiz(body);
+        sendJson(res, result.status, result.data);
+        return;
+      }
 
-    if (req.method === 'GET' && path === '/api/broadcast/clients') {
-      sendJson(res, 200, { online: getOnlineCount() });
-      return;
+      if (req.method === 'GET' && path === '/api/broadcast/quiz') {
+        sendJson(res, 200, getQuizStatus());
+        return;
+      }
+
+      if (req.method === 'GET' && path === '/api/broadcast/clients') {
+        sendJson(res, 200, { online: getOnlineCount() });
+        return;
+      }
     }
 
     // --- 인증 필요한 엔드포인트 ---

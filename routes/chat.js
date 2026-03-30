@@ -2,6 +2,8 @@ import { authenticate } from './auth.js';
 import { insert } from '../db.js';
 
 const clients = new Map();
+const chatCooldowns = new Map();
+const CHAT_COOLDOWN_MS = 10_000;
 let activeQuiz = null;
 
 function broadcast(data, excludeWs = null) {
@@ -76,6 +78,7 @@ export function setupChat(wss) {
         }
         const userAnswer = Number(data.answer);
         if (userAnswer !== activeQuiz.answer) {
+          console.log(`[퀴즈 오답] ${user.username}: ${userAnswer}`);
           ws.send(JSON.stringify({ type: 'fail', message: '오답! 다시 시도하세요.' }));
           return;
         }
@@ -93,8 +96,17 @@ export function setupChat(wss) {
       }
 
       if (data.type === 'chat' && data.message) {
+        const now = Date.now();
+        const lastChat = chatCooldowns.get(ws) || 0;
+        const remaining = CHAT_COOLDOWN_MS - (now - lastChat);
+        if (remaining > 0) {
+          ws.send(JSON.stringify({ type: 'error', message: `채팅 쿨타임 ${Math.ceil(remaining / 1000)}초 남음` }));
+          return;
+        }
+        chatCooldowns.set(ws, now);
+
         const message = String(data.message).slice(0, 500);
-        const timestamp = Date.now();
+        console.log(`[채팅] ${user.username}: ${message}`);
 
         await insert(
           'INSERT INTO chat_messages (user_id, message) VALUES (?, ?)',
@@ -105,13 +117,14 @@ export function setupChat(wss) {
           type: 'chat',
           from: user.username,
           message,
-          timestamp,
+          timestamp: now,
         });
       }
     });
 
     ws.on('close', () => {
       clients.delete(ws);
+      chatCooldowns.delete(ws);
       console.log(`[채팅 퇴장] ${user.username} (접속: ${clients.size}명)`);
       broadcast({
         type: 'system',
