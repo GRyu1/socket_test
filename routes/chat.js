@@ -8,6 +8,8 @@ const clients = new Map();
 const chatCooldowns = new Map();
 const CHAT_COOLDOWN_MS = 10_000;
 let activeQuiz = null;
+let quizTimer = null;
+const QUIZ_TIMEOUT_MS = 10_000;
 
 function broadcast(data, excludeWs = null) {
   const payload = JSON.stringify(data);
@@ -37,6 +39,22 @@ export function startBroadcastQuiz({ a, b, question, answer }) {
   activeQuiz = { question: resolvedQuestion, answer: resolvedAnswer, isString, startedAt: Date.now() };
   broadcast({ type: 'quiz', question: resolvedQuestion });
   console.log(`[퀴즈 출제] ${resolvedQuestion} (정답: ${resolvedAnswer})`);
+
+  clearTimeout(quizTimer);
+  quizTimer = setTimeout(() => {
+    if (!activeQuiz) return;
+    console.log(`[퀴즈 무승부] ${activeQuiz.question} (정답: ${activeQuiz.answer})`);
+    broadcast({
+      type: 'quiz_result',
+      message: `무승부! 정답: ${activeQuiz.answer}`,
+      winner: null,
+      question: activeQuiz.question,
+      answer: activeQuiz.answer,
+      elapsed: QUIZ_TIMEOUT_MS,
+    });
+    activeQuiz = null;
+  }, QUIZ_TIMEOUT_MS);
+
   return { status: 200, data: { success: true, question: resolvedQuestion, sentTo: clients.size } };
 }
 
@@ -108,6 +126,7 @@ export function setupChat(wss) {
         }
         const elapsed = Date.now() - activeQuiz.startedAt;
         console.log(`[퀴즈 정답] ${user.username} (${elapsed}ms)`);
+        clearTimeout(quizTimer);
         broadcast({
           type: 'quiz_result',
           message: `이번 퀴즈 승자 : "${user.username}"`,
