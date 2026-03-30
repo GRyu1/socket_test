@@ -2,6 +2,7 @@ import { authenticate } from './auth.js';
 import { insert } from '../db.js';
 
 const clients = new Map();
+let activeQuiz = null;
 
 function broadcast(data, excludeWs = null) {
   const payload = JSON.stringify(data);
@@ -10,6 +11,27 @@ function broadcast(data, excludeWs = null) {
       ws.send(payload);
     }
   }
+}
+
+export function getOnlineCount() {
+  return clients.size;
+}
+
+export function getQuizStatus() {
+  if (!activeQuiz) return { active: false };
+  return { active: true, question: activeQuiz.question, elapsed: Date.now() - activeQuiz.startedAt };
+}
+
+export function startBroadcastQuiz({ a, b, question, answer }) {
+  if (activeQuiz) {
+    return { status: 409, data: { error: '이미 진행 중인 퀴즈가 있습니다', quiz: activeQuiz.question } };
+  }
+  const resolvedAnswer = answer ?? a * b;
+  const resolvedQuestion = question ?? `${a} × ${b} = ?`;
+  activeQuiz = { question: resolvedQuestion, answer: resolvedAnswer, startedAt: Date.now() };
+  broadcast({ type: 'quiz', question: resolvedQuestion });
+  console.log(`[퀴즈 출제] ${resolvedQuestion} (정답: ${resolvedAnswer})`);
+  return { status: 200, data: { success: true, question: resolvedQuestion, sentTo: clients.size } };
 }
 
 export function setupChat(wss) {
@@ -44,6 +66,29 @@ export function setupChat(wss) {
         data = JSON.parse(raw.toString());
       } catch {
         ws.send(JSON.stringify({ type: 'error', message: 'Invalid JSON' }));
+        return;
+      }
+
+      if (data.type === 'quiz_answer') {
+        if (!activeQuiz) {
+          ws.send(JSON.stringify({ type: 'fail', message: '진행 중인 퀴즈가 없습니다.' }));
+          return;
+        }
+        const userAnswer = Number(data.answer);
+        if (userAnswer !== activeQuiz.answer) {
+          ws.send(JSON.stringify({ type: 'fail', message: '오답! 다시 시도하세요.' }));
+          return;
+        }
+        const elapsed = Date.now() - activeQuiz.startedAt;
+        console.log(`[퀴즈 정답] ${user.username} (${elapsed}ms)`);
+        broadcast({
+          type: 'quiz_result',
+          winner: user.username,
+          question: activeQuiz.question,
+          answer: activeQuiz.answer,
+          elapsed,
+        });
+        activeQuiz = null;
         return;
       }
 

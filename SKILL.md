@@ -62,6 +62,32 @@ curl https://ry.pixelheroes.io/api/history \
 
 ---
 
+## 퀴즈 브로드캐스트 (관리자)
+
+채팅 접속자 전원에게 퀴즈를 출제하고, 첫 정답자를 자동 판별한다.
+
+| Method | Endpoint | 설명 |
+|--------|----------|------|
+| POST | `/api/broadcast/quiz` | 퀴즈 출제 (`{ a, b }` 또는 `{ question, answer }`) |
+| GET | `/api/broadcast/quiz` | 현재 퀴즈 진행 상태 |
+| GET | `/api/broadcast/clients` | 채팅 접속자 수 |
+
+```bash
+# 퀴즈 출제 (4 × 4)
+curl -X POST https://ry.pixelheroes.io/api/broadcast/quiz \
+  -H "Content-Type: application/json" \
+  -d '{"a": 4, "b": 4}'
+
+# 자유 형식 퀴즈
+curl -X POST https://ry.pixelheroes.io/api/broadcast/quiz \
+  -H "Content-Type: application/json" \
+  -d '{"question": "대한민국의 수도는?", "answer": "서울"}'
+```
+
+플로우: 출제 → 접속자 전원에게 `quiz` 메시지 → 채팅에서 `quiz_answer` 제출 → 첫 정답자 `quiz_result` 브로드캐스트 → 사이클 종료
+
+---
+
 ## WebSocket 채팅
 
 접속: `wss://ry.pixelheroes.io/chat?key=YOUR_KEY`
@@ -72,6 +98,12 @@ curl https://ry.pixelheroes.io/api/history \
 { "type": "chat", "message": "안녕하세요!" }
 ```
 
+### 보내기 (퀴즈 응답)
+
+```json
+{ "type": "quiz_answer", "answer": 16 }
+```
+
 ### 받기
 
 | type | fields | 설명 |
@@ -79,4 +111,7 @@ curl https://ry.pixelheroes.io/api/history \
 | `welcome` | `username, online` | 입장 확인 |
 | `chat` | `from, message, timestamp` | 채팅 메시지 |
 | `system` | `message` | 입장/퇴장 알림 |
+| `quiz` | `question` | 퀴즈 출제 (전체 브로드캐스트) |
+| `quiz_result` | `winner, question, answer, elapsed` | 정답자 발표 |
+| `fail` | `message` | 오답 또는 퀴즈 없음 |
 | `error` | `message` | 오류 |

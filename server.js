@@ -8,7 +8,7 @@ import { authenticate, register, login } from './routes/auth.js';
 import { guestFeatures, userFeatures } from './routes/start.js';
 import { startQuiz, submitAnswer } from './routes/quiz.js';
 import { getHistory } from './routes/history.js';
-import { setupChat } from './routes/chat.js';
+import { setupChat, startBroadcastQuiz, getQuizStatus, getOnlineCount } from './routes/chat.js';
 
 const PORT = process.env.PORT || 8080;
 
@@ -80,6 +80,24 @@ const httpServer = createServer(async (req, res) => {
       return;
     }
 
+    // --- 퀴즈 브로드캐스트 (관리자용) ---
+    if (req.method === 'POST' && path === '/api/broadcast/quiz') {
+      const body = await readBody(req);
+      const result = startBroadcastQuiz(body);
+      sendJson(res, result.status, result.data);
+      return;
+    }
+
+    if (req.method === 'GET' && path === '/api/broadcast/quiz') {
+      sendJson(res, 200, getQuizStatus());
+      return;
+    }
+
+    if (req.method === 'GET' && path === '/api/broadcast/clients') {
+      sendJson(res, 200, { online: getOnlineCount() });
+      return;
+    }
+
     // --- 인증 필요한 엔드포인트 ---
     const user = await authenticate(apiKey);
     if (!user) {
@@ -127,5 +145,8 @@ httpServer.listen(PORT, () => {
   console.log(`  수도퀴즈:   POST http://localhost:${PORT}/api/quiz/capital/start`);
   console.log(`  답변제출:   POST http://localhost:${PORT}/api/quiz/answer`);
   console.log(`  기록조회:   GET  http://localhost:${PORT}/api/history`);
+  console.log(`  퀴즈출제:  POST http://localhost:${PORT}/api/broadcast/quiz`);
+  console.log(`  퀴즈상태:  GET  http://localhost:${PORT}/api/broadcast/quiz`);
+  console.log(`  접속자:     GET  http://localhost:${PORT}/api/broadcast/clients`);
   console.log(`  채팅:       WSS  ws://localhost:${PORT}/chat?key=API_KEY`);
 });
