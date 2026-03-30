@@ -5,6 +5,7 @@ import { insert } from '../db.js';
 const capitals = JSON.parse(readFileSync(new URL('../data/capitals.json', import.meta.url), 'utf-8'));
 
 const clients = new Map();
+const apiKeyToWs = new Map();
 const chatCooldowns = new Map();
 const CHAT_COOLDOWN_MS = 10_000;
 let activeQuiz = null;
@@ -88,6 +89,14 @@ export function setupChat(wss) {
       ws.close(4001, 'Unauthorized');
       return;
     }
+
+    const prevWs = apiKeyToWs.get(apiKey);
+    if (prevWs && prevWs.readyState <= 1) {
+      console.log(`[세션 교체] ${user.username} 기존 세션 종료`);
+      prevWs.send(JSON.stringify({ type: 'system', message: '다른 곳에서 접속하여 연결이 종료됩니다.' }));
+      prevWs.close(4002, 'Replaced');
+    }
+    apiKeyToWs.set(apiKey, ws);
 
     clients.set(ws, user);
     console.log(`[채팅 입장] ${user.username} (접속: ${clients.size}명)`);
@@ -173,6 +182,7 @@ export function setupChat(wss) {
     ws.on('close', () => {
       clients.delete(ws);
       chatCooldowns.delete(ws);
+      if (apiKeyToWs.get(apiKey) === ws) apiKeyToWs.delete(apiKey);
       console.log(`[채팅 퇴장] ${user.username} (접속: ${clients.size}명)`);
       broadcast({
         type: 'system',
