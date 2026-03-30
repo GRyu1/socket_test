@@ -77,8 +77,7 @@ export function startGugudanQuiz() {
 
 export function setupChat(wss) {
   wss.on('connection', async (ws, req) => {
-    const url = new URL(req.url, `http://${req.headers.host}`);
-    const apiKey = url.searchParams.get('key');
+    const apiKey = req.headers['x-api-key'] || null;
 
     const user = await authenticate(apiKey);
     if (!user) {

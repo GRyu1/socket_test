@@ -144,5 +144,5 @@ httpServer.listen(PORT, () => {
   console.log(`  자유출제:   POST http://localhost:${PORT}/api/broadcast/quiz`);
   console.log(`  퀴즈상태:   GET  http://localhost:${PORT}/api/broadcast/quiz`);
   console.log(`  접속자:     GET  http://localhost:${PORT}/api/broadcast/clients`);
-  console.log(`  채팅:       WSS  ws://localhost:${PORT}/chat?key=API_KEY`);
+  console.log(`  채팅:       WSS  ws://localhost:${PORT}/chat (x-api-key 헤더)`);
 });

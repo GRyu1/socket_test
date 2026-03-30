@@ -32,7 +32,8 @@ export function userFeatures(user) {
       {
         title: '채팅방 입장',
         description: 'WebSocket으로 채팅방에 접속합니다. 접속하면 다른 유저와 실시간 대화가 가능하고, 관리자가 퀴즈를 출제하면 누가 먼저 맞추나 경쟁합니다. 채팅은 10초 쿨타임이 있습니다.',
-        endpoint: 'WSS /chat?key=YOUR_API_KEY',
+        endpoint: 'WSS /chat',
+        headers: { 'x-api-key': 'YOUR_API_KEY' },
       },
       {
         title: '채팅 보내기',

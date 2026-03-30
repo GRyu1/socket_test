@@ -46,7 +46,7 @@ curl -X POST https://ry.pixelheroes.io/api/register \
 
 ## WebSocket 채팅 + 퀴즈
 
-접속: `wss://ry.pixelheroes.io/chat?key=YOUR_KEY`
+접속: `wss://ry.pixelheroes.io/chat` (헤더 `x-api-key: YOUR_KEY`)
 
 채팅과 퀴즈가 동일한 WebSocket 세션에서 동작한다.
 
