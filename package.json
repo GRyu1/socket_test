@@ -1,17 +1,21 @@
 {
   "name": "socket-play-server",
-  "version": "1.0.0",
-  "description": "Simple WebSocket server for testing and prototyping",
+  "version": "2.0.0",
+  "description": "Quiz & Chat server with self-describing API",
   "type": "module",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "client": "node client.js"
+    "client": "node client.js",
+    "schema": "mysql -h 192.168.0.16 -u z5corp -p ry < schema.sql"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "bcrypt": "^5.1.1",
+    "dotenv": "^16.4.7",
+    "mysql2": "^3.12.0",
     "ws": "^8.18.0"
   }
 }
