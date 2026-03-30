@@ -1,6 +1,9 @@
 import 'dotenv/config';
 import { createServer } from 'http';
+import { readFileSync } from 'fs';
 import { WebSocketServer } from 'ws';
+
+const SKILL_MD = readFileSync(new URL('./SKILL.md', import.meta.url), 'utf-8');
 import { authenticate, register, login } from './routes/auth.js';
 import { guestFeatures, userFeatures } from './routes/start.js';
 import { startQuiz, submitAnswer } from './routes/quiz.js';
@@ -42,6 +45,21 @@ const httpServer = createServer(async (req, res) => {
   const apiKey = req.headers['x-api-key'] || null;
 
   try {
+    if (req.method === 'GET' && path === '/SKILL.md') {
+      res.writeHead(200, {
+        'Content-Type': 'text/markdown; charset=utf-8',
+        'Access-Control-Allow-Origin': '*',
+      });
+      res.end(SKILL_MD);
+      return;
+    }
+
+    // health check
+    if (req.method === 'GET' && path === '/health') {
+      sendJson(res, 200, { status: 'ok' });
+      return;
+    }
+
     if (req.method === 'GET' && path === '/api/start') {
       const user = await authenticate(apiKey);
       sendJson(res, 200, user ? userFeatures(user) : guestFeatures());
@@ -101,6 +119,7 @@ setupChat(wss);
 
 httpServer.listen(PORT, () => {
   console.log(`서버 시작 - http://localhost:${PORT}`);
+  console.log(`  상태:       GET  http://localhost:${PORT}/health`);
   console.log(`  진입점:     GET  http://localhost:${PORT}/api/start`);
   console.log(`  회원가입:   POST http://localhost:${PORT}/api/register`);
   console.log(`  로그인:     POST http://localhost:${PORT}/api/login`);
