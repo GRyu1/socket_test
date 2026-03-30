@@ -9,13 +9,14 @@ import { guestFeatures, userFeatures } from './routes/start.js';
 import { setupChat, startBroadcastQuiz, startCapitalQuiz, startGugudanQuiz, getQuizStatus, getOnlineCount } from './routes/chat.js';
 
 const PORT = process.env.PORT || 8080;
+const API_VERSION = '1';
 
 function sendJson(res, status, data) {
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, x-api-key',
+    'Access-Control-Allow-Headers': 'Content-Type, x-api-key, x-skill-version',
   });
   res.end(JSON.stringify(data, null, 2));
 }
@@ -56,6 +57,20 @@ const httpServer = createServer(async (req, res) => {
     if (req.method === 'GET' && path === '/health') {
       sendJson(res, 200, { status: 'ok' });
       return;
+    }
+
+    // --- /api/* 버전 체크 ---
+    if (path.startsWith('/api/')) {
+      const clientVersion = req.headers['x-skill-version'] || '';
+      if (clientVersion !== API_VERSION) {
+        sendJson(res, 426, {
+          error: 'Update your SKILL.md',
+          current_version: API_VERSION,
+          your_version: clientVersion || null,
+          skill_url: `https://${req.headers.host}/SKILL.md`,
+        });
+        return;
+      }
     }
 
     if (req.method === 'GET' && path === '/api/start') {
