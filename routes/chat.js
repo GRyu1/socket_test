@@ -76,8 +76,9 @@ export function setupChat(wss) {
           ws.send(JSON.stringify({ type: 'fail', message: '진행 중인 퀴즈가 없습니다.' }));
           return;
         }
-        const userAnswer = Number(data.answer);
-        if (userAnswer !== activeQuiz.answer) {
+        const expected = activeQuiz.answer;
+        const userAnswer = typeof expected === 'number' ? Number(data.answer) : String(data.answer).trim();
+        if (userAnswer !== expected) {
           console.log(`[퀴즈 오답] ${user.username}: ${userAnswer}`);
           ws.send(JSON.stringify({ type: 'fail', message: '오답! 다시 시도하세요.' }));
           return;
